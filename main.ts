@@ -18,6 +18,16 @@ try {
   // no such flag: run whatever tier the runtime has
 }
 
+// Maglev's own compile is part of that quarter second too: the two passes that cost the most to compile and buy least in
+// a run this short are off, which measured a few percent faster. Guarded the same way, and flags change no output.
+for (const flag of ['--no-maglev-inlining', '--no-maglev-loop-peeling']) {
+  try {
+    setFlagsFromString(flag);
+  } catch {
+    // no such flag: Maglev compiles as it pleases
+  }
+}
+
 const { run } = (await import(new URL('./solve.js', import.meta.url).href)) as { run: (input: unknown) => unknown };
 
 const INPUT_DIR = process.env.MAKEFUN_INPUT_DIR ?? '/input';

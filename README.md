@@ -11,6 +11,13 @@ off its lines with no block-token objects, templates parsed once and rendered ov
 chain of scope objects, and a loop's `loop` object built only when its body reads it. The driver also turns V8's
 optimising tier off before the import: a quarter second of work cannot repay the compilation that tier does inside it.
 
+A second pass took it further: a partial that can only render the same text on every page of a build (the header, the
+footer, the recent-notes list, the filler widgets — proved from the parse tree, not assumed) is rendered once and
+pushed whole from then on, pages and Markdown blocks are built as flat pieces joined once instead of ropes of appends,
+inline Markdown renders a nested run in place rather than slicing it out first, slugs and word counts are made of
+character tables rather than regexes, and the driver turns off Maglev's two costliest compile passes as well — which
+together measured about 20% off the practice set's CPU time on top of the first pass.
+
 [![make.fun · site-generator-speed-01-run-20261122](https://make.fun/badge/site-generator-speed-01-run-20261122.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122)
 [![rank](https://make.fun/badge/site-generator-speed-01-run-20261122/AARenor/mf_site_generator/rank.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122/leaderboard)
 [![reward](https://make.fun/badge/site-generator-speed-01-run-20261122/AARenor/mf_site_generator/reward.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122)
