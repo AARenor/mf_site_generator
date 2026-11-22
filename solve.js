@@ -203,6 +203,34 @@ function isBlank(line) {
   return true;
 }
 
+/** The kinds of block a line can start, as the integers the Markdown loop dispatches on. */
+const LINE_TEXT = 0;
+const LINE_BLANK = 1;
+const LINE_FENCE = 2;
+const LINE_HEADING = 3;
+const LINE_HR = 4;
+const LINE_QUOTE = 5;
+const LINE_BULLET = 6;
+const LINE_ORDERED = 7;
+
+/**
+ * What `line` starts: one first character decides which of the seven rules can even apply — and in the order the rules
+ * are stated in (blank, fence, heading, break, quote, bullet, ordered) — so a block costs one read, not seven checks.
+ */
+function lineKind(line) {
+  const c = line.charCodeAt(0);
+  if (c === 96) return fenceOpenLang(line) !== -1 ? LINE_FENCE : LINE_TEXT;
+  if (c === 35) return headingOf(line) !== 0 ? LINE_HEADING : LINE_TEXT;
+  if (c === 45 || c === 42) {
+    if (isHr(line)) return LINE_HR;
+    return line.length >= 2 && line.charCodeAt(1) === 32 ? LINE_BULLET : LINE_TEXT;
+  }
+  if (c === 62) return LINE_QUOTE;
+  if (c === 32 || c === 9) return isBlank(line) ? LINE_BLANK : LINE_TEXT;
+  if (c >= 48 && c <= 57) return orderedContentStart(line) !== -1 ? LINE_ORDERED : LINE_TEXT;
+  return c !== c ? LINE_BLANK : LINE_TEXT;
+}
+
 /** `line` without spaces and tabs at either end. */
 function trimLine(line) {
   const n = line.length;
@@ -302,15 +330,10 @@ function isHr(line) {
   return true;
 }
 
-/** Whether `line` ends a paragraph: blank, a fence, a heading or a thematic break. The first character names the one
- * check worth making, so an ordinary line of prose costs a single read. */
+/** Whether `line` ends a paragraph: blank, a fence, a heading or a thematic break — kinds 1 to 4 of the seven. */
 function endsParagraph(line) {
-  const c = line.charCodeAt(0);
-  if (c === 96) return fenceOpenLang(line) !== -1;
-  if (c === 35) return headingOf(line) !== 0;
-  if (c === 45 || c === 42) return isHr(line);
-  if (c === 32 || c === 9) return isBlank(line);
-  return c !== c;
+  const kind = lineKind(line);
+  return kind !== LINE_TEXT && kind <= LINE_HR;
 }
 
 /** Where a bullet item's text starts (2), or -1. */
@@ -534,12 +557,13 @@ function renderMarkdown(src, link, out) {
   let i = 0;
   while (i < count) {
     const line = lines[i];
-    if (isBlank(line)) {
+    const kind = lineKind(line);
+    if (kind === LINE_BLANK) {
       i++;
       continue;
     }
-    const langEnd = fenceOpenLang(line);
-    if (langEnd !== -1) {
+    if (kind === LINE_FENCE) {
+      const langEnd = fenceOpenLang(line);
       const body = [];
       i++;
       while (i < count && !isFenceClose(lines[i])) {
@@ -551,8 +575,8 @@ function renderMarkdown(src, link, out) {
       html.push('<pre><code', cls, '>', body.join(''), '</code></pre>\n');
       continue;
     }
-    const depth = headingOf(line);
-    if (depth !== 0) {
+    if (kind === LINE_HEADING) {
+      const depth = headingOf(line);
       const text = headingText(line, depth);
       const slug = slugify(text);
       let id = slug;
@@ -572,12 +596,12 @@ function renderMarkdown(src, link, out) {
       i++;
       continue;
     }
-    if (isHr(line)) {
+    if (kind === LINE_HR) {
       html.push('<hr>\n');
       i++;
       continue;
     }
-    if (line.charCodeAt(0) === 62) {
+    if (kind === LINE_QUOTE) {
       const body = [];
       while (i < count && lines[i].charCodeAt(0) === 62) {
         const raw = lines[i];
@@ -592,10 +616,8 @@ function renderMarkdown(src, link, out) {
       else html.push('<blockquote>\n<p>', inline(body.join(''), link), '</p>\n</blockquote>\n');
       continue;
     }
-    const bullet = bulletContentStart(line);
-    const ordered = bullet === -1 ? orderedContentStart(line) : -1;
-    if (bullet !== -1 || ordered !== -1) {
-      const isOrdered = ordered !== -1;
+    if (kind === LINE_BULLET || kind === LINE_ORDERED) {
+      const isOrdered = kind === LINE_ORDERED;
       let start = 1;
       if (isOrdered) {
         let digits = 0;
