@@ -5,8 +5,11 @@
 the harness hands it.
 
 Built by reading the reference end to end, writing down its rules (front matter, template dialect, Markdown subset,
-slug rule, report), mirroring them, and then making the mirror fast: one scan per string, no regex in a hot path,
-templates parsed once, no intermediate block-token objects, and escaping that copies runs instead of characters.
+slug rule, report), mirroring them, and then making the mirror fast: one scan per string through a character table
+instead of a regex, escaping and inline Markdown copying whole runs instead of characters, Markdown rendered straight
+off its lines with no block-token objects, templates parsed once and rendered over a stack of scopes rather than a
+chain of scope objects, and a loop's `loop` object built only when its body reads it. The driver also turns V8's
+optimising tier off before the import: a quarter second of work cannot repay the compilation that tier does inside it.
 
 [![make.fun · site-generator-speed-01-run-20261122](https://make.fun/badge/site-generator-speed-01-run-20261122.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122)
 [![rank](https://make.fun/badge/site-generator-speed-01-run-20261122/AARenor/mf_site_generator/rank.svg)](https://make.fun/bounty/site-generator-speed-01-run-20261122/leaderboard)

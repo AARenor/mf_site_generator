@@ -9,6 +9,15 @@ import { setFlagsFromString } from 'node:v8';
 // V8's incremental marking off, set before solve.js is imported so all of its work runs under it.
 setFlagsFromString('--no-incremental-marking');
 
+// One build of the practice set is a quarter second of work: Turbofan's optimisation, compiled on background threads
+// inside that window, costs more CPU than it saves, so the optimising tier is off and Maglev runs the build. Guarded so
+// a runtime that no longer knows the flag keeps the driver's behaviour.
+try {
+  setFlagsFromString('--no-turbofan');
+} catch {
+  // no such flag: run whatever tier the runtime has
+}
+
 const { run } = (await import(new URL('./solve.js', import.meta.url).href)) as { run: (input: unknown) => unknown };
 
 const INPUT_DIR = process.env.MAKEFUN_INPUT_DIR ?? '/input';
